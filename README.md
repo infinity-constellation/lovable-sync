@@ -243,3 +243,20 @@ These can be the same PAT if it has access to both repos.
 - **`package-lock.json` is excluded by default.** Lovable uses `bun.lock`; production repos typically use `npm`. The lockfile should be regenerated in CI after sync.
 - **The sync is one-way** (Lovable repo -> production repo). Production-only changes (in excluded paths) are never pushed back to the Lovable repo.
 - **Conflicts**: If the same file is modified in both repos (e.g., `src/App.tsx` edited manually in production AND by Lovable), the sync will overwrite with the Lovable version. Keep production-specific changes in excluded paths or separate files.
+
+## Related Repos
+
+This repo handles **sync automation only**. The full Lovable-to-Production pipeline spans several repos:
+
+| Repo | Owns | Docs |
+|------|------|------|
+| [`lovable-sync`](https://github.com/infinity-constellation/lovable-sync) | Reusable sync & drift-check workflows, `.factory-sync.yml` contract | This README |
+| [`devshop-infra`](https://github.com/infinity-constellation/devshop-infra) | Terraform modules (CD pipeline, ECR, CodeBuild, EKS access), Helm charts, buildspecs, infrastructure context | `CONTEXT.md` — sections: Lovable App Pipeline, Infinity Factory Deployment |
+| [`launchpad-lovable-wrapper`](https://github.com/infinity-constellation/launchpad-lovable-wrapper) | Reference app-level scaffolding: Dockerfile, nginx.conf (OpenResty + OIDC Lua), Helm values, CI/CD workflows | `README.md` |
+
+### What lives where
+
+- **"How do I set up sync for a new Lovable app?"** — This repo (`lovable-sync` README)
+- **"How do I create the Terraform infra for a new app?"** — `devshop-infra` CONTEXT.md, Lovable App Pipeline section
+- **"What goes in a production repo's Dockerfile / nginx / Helm values?"** — `launchpad-lovable-wrapper` as the reference implementation
+- **"What decisions were made for a specific app?"** — That app's production repo (e.g., `infinity-factory-production/.factory-sync.yml` and `devops/`)

@@ -1,0 +1,56 @@
+# .factory-sync.yml — Lovable-to-Production sync contract
+#
+# Place this file in the ROOT of your production repo.
+# It defines what gets synced from the Lovable-connected repo.
+
+# The Lovable-connected source repo (org/name)
+source_repo: infinity-constellation/artifact-atlas-view
+
+# Branch to read from in the source repo (Lovable syncs to main)
+source_branch: main
+
+# Branch to target in this (production) repo for sync PRs
+target_branch: staging
+
+# Paths to sync FROM the Lovable repo INTO this repo.
+# These are Lovable-owned — the sync will overwrite local versions.
+# Uses glob patterns (rsync-style).
+include_paths:
+  - src/pages/**
+  - src/components/**
+  - src/data/**
+  - src/hooks/**
+  - src/lib/**
+  - src/App.tsx
+  - src/main.tsx
+  - src/index.css
+  - src/App.css
+  - index.html
+  - package.json
+  - tsconfig*.json
+  - vite.config.ts
+  - tailwind.config.ts
+  - postcss.config.js
+  - components.json
+
+# Paths to NEVER overwrite in this repo, even if they exist in source.
+# These are production-owned files that the sync must not touch.
+exclude_paths:
+  - .github/**
+  - devops/**
+  - Dockerfile.production
+  - package-lock.json
+  - eslint.config.js
+  - .factory-sync.yml
+  - scripts/**
+
+# PR configuration
+pr:
+  # Label(s) to apply to sync PRs
+  labels:
+    - lovable-sync
+    - automated
+  # Assignees for sync PRs (GitHub usernames)
+  assignees: []
+  # Auto-merge sync PRs if CI passes? (default: false)
+  auto_merge: false

@@ -1,0 +1,85 @@
+# Reusable workflow: Check for drift between Lovable source and production repo
+#
+# Called from production repos via workflow_call.
+# Reads .factory-sync.yml from the calling repo to determine source/target.
+#
+name: Lovable Drift Check
+
+on:
+  workflow_call:
+    inputs:
+      notify:
+        description: "Post a summary to the GitHub Actions run"
+        type: boolean
+        default: true
+    secrets:
+      source_repo_token:
+        description: "GitHub token with read access to the source Lovable repo"
+        required: true
+    outputs:
+      has_drift:
+        description: "Whether drift was detected"
+        value: ${{ jobs.drift-check.outputs.has_drift }}
+      total_drift:
+        description: "Number of drifted paths"
+        value: ${{ jobs.drift-check.outputs.total_drift }}
+
+jobs:
+  drift-check:
+    runs-on: ubuntu-latest
+    outputs:
+      has_drift: ${{ steps.drift.outputs.has_drift }}
+      total_drift: ${{ steps.drift.outputs.total_drift }}
+      drift_summary: ${{ steps.drift.outputs.drift_summary }}
+
+    steps:
+      - name: Checkout production repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Checkout lovable-sync tooling
+        uses: actions/checkout@v4
+        with:
+          repository: infinity-constellation/lovable-sync
+          path: .lovable-sync
+          token: ${{ secrets.source_repo_token }}
+
+      - name: Install yq
+        uses: mikefarah/yq@master
+
+      - name: Validate sync config
+        run: |
+          if [[ ! -f .factory-sync.yml ]]; then
+            echo "::error::Missing .factory-sync.yml in repository root"
+            exit 1
+          fi
+
+      - name: Check for drift
+        id: drift
+        env:
+          GITHUB_TOKEN: ${{ secrets.source_repo_token }}
+        run: |
+          chmod +x .lovable-sync/scripts/drift-check.sh
+          .lovable-sync/scripts/drift-check.sh "${{ github.workspace }}"
+
+      - name: Post summary
+        if: inputs.notify == true
+        run: |
+          if [[ "${{ steps.drift.outputs.has_drift }}" == "true" ]]; then
+            echo "## Drift Detected" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "**${{ steps.drift.outputs.total_drift }} paths** have diverged between source and production." >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "| Metric | Count |" >> $GITHUB_STEP_SUMMARY
+            echo "|--------|-------|" >> $GITHUB_STEP_SUMMARY
+            echo "| New in source | ${{ steps.drift.outputs.files_only_in_source }} |" >> $GITHUB_STEP_SUMMARY
+            echo "| Only in production | ${{ steps.drift.outputs.files_only_in_prod }} |" >> $GITHUB_STEP_SUMMARY
+            echo "| Modified | ${{ steps.drift.outputs.files_differ }} |" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Run the **Lovable Sync** workflow to resolve this drift." >> $GITHUB_STEP_SUMMARY
+          else
+            echo "## No Drift" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Source and production are in sync." >> $GITHUB_STEP_SUMMARY
+          fi

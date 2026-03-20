@@ -1,0 +1,17 @@
+# Example: Place this in the production repo at .github/workflows/lovable-drift-check.yml
+#
+# Checks for drift between the Lovable source and this production repo.
+# Runs on a schedule and can be triggered manually.
+#
+name: Lovable Drift Check
+
+on:
+  workflow_dispatch: {}
+  schedule:
+    - cron: '0 6 * * 1'  # Every Monday at 6am UTC
+
+jobs:
+  drift-check:
+    uses: infinity-constellation/lovable-sync/.github/workflows/drift-check.yml@main
+    secrets:
+      source_repo_token: ${{ secrets.LOVABLE_SYNC_TOKEN }}

@@ -1,0 +1,30 @@
+# Example: Place this in the production repo at .github/workflows/lovable-sync.yml
+#
+# Triggers sync from the Lovable source repo into this production repo.
+# Can be triggered by:
+#   - repository_dispatch (from the Lovable repo's dispatch workflow)
+#   - Manual workflow_dispatch
+#   - Scheduled cron (optional safety net)
+#
+name: Lovable Sync
+
+on:
+  repository_dispatch:
+    types: [lovable-sync]
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Dry run (report only, no PR)"
+        type: boolean
+        default: false
+  # Optional: daily safety net in case dispatch misses
+  # schedule:
+  #   - cron: '0 6 * * *'  # 6am UTC daily
+
+jobs:
+  sync:
+    uses: infinity-constellation/lovable-sync/.github/workflows/sync.yml@main
+    with:
+      dry_run: ${{ github.event.inputs.dry_run == 'true' || false }}
+    secrets:
+      source_repo_token: ${{ secrets.LOVABLE_SYNC_TOKEN }}

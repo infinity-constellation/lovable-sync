@@ -1,0 +1,140 @@
+# Reusable workflow: Sync Lovable source repo into production repo
+#
+# Called from production repos via workflow_call.
+# Reads .factory-sync.yml from the calling repo to determine source/target.
+#
+# Triggers:
+#   - repository_dispatch from the Lovable repo (event: lovable-sync)
+#   - workflow_dispatch for manual runs
+#   - Called by other workflows via workflow_call
+#
+name: Lovable Sync
+
+on:
+  workflow_call:
+    inputs:
+      dry_run:
+        description: "If true, report changes without creating a PR"
+        type: boolean
+        default: false
+    secrets:
+      source_repo_token:
+        description: "GitHub token with read access to the source Lovable repo"
+        required: true
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    outputs:
+      sync_needed: ${{ steps.sync.outputs.sync_needed }}
+      sync_branch: ${{ steps.sync.outputs.sync_branch }}
+      source_sha: ${{ steps.sync.outputs.source_sha }}
+      files_changed: ${{ steps.sync.outputs.files_changed }}
+
+    steps:
+      - name: Checkout production repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Checkout lovable-sync tooling
+        uses: actions/checkout@v4
+        with:
+          repository: infinity-constellation/lovable-sync
+          path: .lovable-sync
+          token: ${{ secrets.source_repo_token }}
+
+      - name: Install yq
+        uses: mikefarah/yq@master
+
+      - name: Validate sync config
+        run: |
+          if [[ ! -f .factory-sync.yml ]]; then
+            echo "::error::Missing .factory-sync.yml in repository root"
+            exit 1
+          fi
+          echo "Sync config found:"
+          cat .factory-sync.yml
+
+      - name: Run sync
+        id: sync
+        env:
+          GITHUB_TOKEN: ${{ secrets.source_repo_token }}
+        run: |
+          chmod +x .lovable-sync/scripts/sync.sh
+          .lovable-sync/scripts/sync.sh "${{ github.workspace }}"
+
+      - name: Create Pull Request
+        if: steps.sync.outputs.sync_needed == 'true' && inputs.dry_run != true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # Read PR config from .factory-sync.yml
+          TARGET_BRANCH=$(yq '.target_branch // "staging"' .factory-sync.yml)
+          SOURCE_REPO=$(yq '.source_repo' .factory-sync.yml)
+          LABELS=$(yq -r '.pr.labels // [] | join(",")' .factory-sync.yml)
+          ASSIGNEES=$(yq -r '.pr.assignees // [] | join(",")' .factory-sync.yml)
+          AUTO_MERGE=$(yq '.pr.auto_merge // false' .factory-sync.yml)
+
+          PR_TITLE="sync: Lovable update from ${SOURCE_REPO}@${{ steps.sync.outputs.source_sha }}"
+
+          PR_BODY="## Lovable Sync
+
+          Automated sync of Lovable-managed files from \`${SOURCE_REPO}\`.
+
+          **Source:** \`${SOURCE_REPO}@${{ steps.sync.outputs.source_sha }}\`
+          **Target:** \`${TARGET_BRANCH}\`
+          **Files changed:** ${{ steps.sync.outputs.files_changed }}
+
+          ### Changes
+          \`\`\`
+          ${{ steps.sync.outputs.diff_stat }}
+          \`\`\`
+
+          ---
+          *This PR was created automatically by [lovable-sync](https://github.com/infinity-constellation/lovable-sync).*"
+
+          PR_ARGS=(
+            --title "$PR_TITLE"
+            --body "$PR_BODY"
+            --base "$TARGET_BRANCH"
+            --head "${{ steps.sync.outputs.sync_branch }}"
+          )
+
+          if [[ -n "$LABELS" ]]; then
+            PR_ARGS+=(--label "$LABELS")
+          fi
+
+          if [[ -n "$ASSIGNEES" ]]; then
+            PR_ARGS+=(--assignee "$ASSIGNEES")
+          fi
+
+          PR_URL=$(gh pr create "${PR_ARGS[@]}")
+          echo "Pull request created: ${PR_URL}"
+
+          if [[ "$AUTO_MERGE" == "true" ]]; then
+            gh pr merge "$PR_URL" --auto --squash
+            echo "Auto-merge enabled for PR"
+          fi
+
+      - name: Dry run summary
+        if: steps.sync.outputs.sync_needed == 'true' && inputs.dry_run == true
+        run: |
+          echo "## Dry Run Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Changes would be synced:" >> $GITHUB_STEP_SUMMARY
+          echo "- Files changed: ${{ steps.sync.outputs.files_changed }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          echo "${{ steps.sync.outputs.diff_stat }}" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
+      - name: No changes summary
+        if: steps.sync.outputs.sync_needed != 'true'
+        run: |
+          echo "## Sync Check" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "No changes detected — source and production are already in sync." >> $GITHUB_STEP_SUMMARY

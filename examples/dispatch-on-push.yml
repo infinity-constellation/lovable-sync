@@ -1,0 +1,40 @@
+# Example: Place this in the Lovable-connected repo at .github/workflows/dispatch-sync.yml
+#
+# On every push to main (which Lovable triggers), this fires a repository_dispatch
+# event to the production repo, which in turn triggers the sync workflow.
+#
+# Required secret: SYNC_DISPATCH_TOKEN — a GitHub PAT with repo scope on the
+# production repo (needed for cross-repo dispatch).
+#
+name: Dispatch Lovable Sync
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'src/**'
+      - 'index.html'
+      - 'package.json'
+      - 'vite.config.ts'
+      - 'tailwind.config.ts'
+      - 'tsconfig*.json'
+      - 'components.json'
+
+jobs:
+  dispatch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger sync in production repo
+        uses: peter-evans/repository-dispatch@v3
+        with:
+          # UPDATE: Set the target production repo
+          repository: infinity-constellation/infinity-factory-production
+          token: ${{ secrets.SYNC_DISPATCH_TOKEN }}
+          event-type: lovable-sync
+          client-payload: |
+            {
+              "source_repo": "${{ github.repository }}",
+              "source_sha": "${{ github.sha }}",
+              "source_ref": "${{ github.ref }}",
+              "source_message": "${{ github.event.head_commit.message }}"
+            }

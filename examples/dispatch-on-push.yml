@@ -26,10 +26,10 @@ jobs:
   dispatch:
     runs-on: ubuntu-latest
     steps:
-      - name: Trigger sync in production repo
+      - name: Trigger sync in web repo
         uses: peter-evans/repository-dispatch@v3
         with:
-          repository: infinity-constellation/infinity-factory-production
+          repository: infinity-constellation/infinity-factory-web
           token: ${{ secrets.SYNC_DISPATCH_TOKEN }}
           event-type: lovable-sync
           client-payload: |

@@ -13,7 +13,7 @@ artifact-atlas-view (Lovable <-> GitHub, two-way sync on main)
         |
         |  push to main triggers dispatch
         v
-infinity-factory-production (staging branch = deployed)
+infinity-factory-web (staging branch = deployed)
         |
         |  sync workflow: clone source, rsync included paths, open PR
         v
@@ -42,7 +42,7 @@ infinity-factory-production (staging branch = deployed)
 ### Prerequisites
 
 - A Lovable-connected repo (e.g., `artifact-atlas-view`) — this is created by Lovable and must NOT be renamed
-- A production repo (e.g., `infinity-factory-production`) with deployment scaffolding
+- A production repo (e.g., `infinity-factory-web`) with deployment scaffolding
 - A GitHub PAT (classic) or fine-grained token with:
   - `repo` scope on both the Lovable repo and the production repo
   - Used for cross-repo cloning and dispatch
@@ -259,4 +259,4 @@ This repo handles **sync automation only**. The full Lovable-to-Production pipel
 - **"How do I set up sync for a new Lovable app?"** — This repo (`lovable-sync` README)
 - **"How do I create the Terraform infra for a new app?"** — `devshop-infra` CONTEXT.md, Lovable App Pipeline section
 - **"What goes in a production repo's Dockerfile / nginx / Helm values?"** — `launchpad-lovable-wrapper` as the reference implementation
-- **"What decisions were made for a specific app?"** — That app's production repo (e.g., `infinity-factory-production/.factory-sync.yml` and `devops/`)
+- **"What decisions were made for a specific app?"** — That app's production repo (e.g., `infinity-factory-web/.factory-sync.yml` and `devops/`)

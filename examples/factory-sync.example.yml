@@ -21,6 +21,7 @@ include_paths:
   - src/data/**
   - src/hooks/**
   - src/lib/**
+  - src/integrations/**
   - src/App.tsx
   - src/main.tsx
   - src/index.css
@@ -32,6 +33,7 @@ include_paths:
   - tailwind.config.ts
   - postcss.config.js
   - components.json
+  - public/**
 
 # Paths to NEVER overwrite in this repo, even if they exist in source.
 # These are production-owned files that the sync must not touch.
@@ -43,6 +45,9 @@ exclude_paths:
   - eslint.config.js
   - .factory-sync.yml
   - scripts/**
+  - adapter/**
+  - bun.lock
+  - bun.lockb
 
 # PR configuration
 pr:

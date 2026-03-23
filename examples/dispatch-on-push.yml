@@ -13,10 +13,12 @@ on:
     branches: [main]
     paths:
       - 'src/**'
+      - 'public/**'
       - 'index.html'
       - 'package.json'
       - 'vite.config.ts'
       - 'tailwind.config.ts'
+      - 'postcss.config.js'
       - 'tsconfig*.json'
       - 'components.json'
 
@@ -27,7 +29,6 @@ jobs:
       - name: Trigger sync in production repo
         uses: peter-evans/repository-dispatch@v3
         with:
-          # UPDATE: Set the target production repo
           repository: infinity-constellation/infinity-factory-production
           token: ${{ secrets.SYNC_DISPATCH_TOKEN }}
           event-type: lovable-sync

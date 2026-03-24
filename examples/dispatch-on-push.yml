@@ -3,8 +3,7 @@
 # On every push to main (which Lovable triggers), this fires a repository_dispatch
 # event to the production repo, which in turn triggers the sync workflow.
 #
-# Required secret: SYNC_DISPATCH_TOKEN — a GitHub PAT with repo scope on the
-# production repo (needed for cross-repo dispatch).
+# Auth: GitHub App (recommended) or PAT with repo scope on the production repo.
 #
 name: Dispatch Lovable Sync
 
@@ -26,11 +25,21 @@ jobs:
   dispatch:
     runs-on: ubuntu-latest
     steps:
-      - name: Trigger sync in web repo
+      # GitHub App auth (recommended):
+      - name: Generate GitHub App token
+        id: app-token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.LOVABLE_SYNC_APP_ID }}
+          private-key: ${{ secrets.LOVABLE_SYNC_APP_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+
+      - name: Trigger sync in production repo
         uses: peter-evans/repository-dispatch@v3
         with:
-          repository: infinity-constellation/infinity-factory-web
-          token: ${{ secrets.SYNC_DISPATCH_TOKEN }}
+          repository: your-org/your-production-repo
+          token: ${{ steps.app-token.outputs.token }}
+          # OR for PAT auth: token: ${{ secrets.SYNC_DISPATCH_TOKEN }}
           event-type: lovable-sync
           client-payload: |
             {

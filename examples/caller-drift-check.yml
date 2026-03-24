@@ -14,4 +14,8 @@ jobs:
   drift-check:
     uses: infinity-constellation/lovable-sync/.github/workflows/drift-check.yml@main
     secrets:
-      source_repo_token: ${{ secrets.LOVABLE_SYNC_TOKEN }}
+      # GitHub App auth (recommended):
+      app_id: ${{ secrets.LOVABLE_SYNC_APP_ID }}
+      app_private_key: ${{ secrets.LOVABLE_SYNC_APP_PRIVATE_KEY }}
+      # OR PAT auth (legacy):
+      # source_repo_token: ${{ secrets.LOVABLE_SYNC_TOKEN }}

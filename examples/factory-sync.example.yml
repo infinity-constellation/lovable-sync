@@ -4,7 +4,7 @@
 # It defines what gets synced from the Lovable-connected repo.
 
 # The Lovable-connected source repo (org/name)
-source_repo: infinity-constellation/artifact-atlas-view
+source_repo: your-org/your-lovable-repo
 
 # Branch to read from in the source repo (Lovable syncs to main)
 source_branch: main

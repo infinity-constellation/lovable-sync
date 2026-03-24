@@ -4,7 +4,6 @@
 # Can be triggered by:
 #   - repository_dispatch (from the Lovable repo's dispatch workflow)
 #   - Manual workflow_dispatch
-#   - Scheduled cron (optional safety net)
 #
 name: Lovable Sync
 
@@ -27,4 +26,8 @@ jobs:
     with:
       dry_run: ${{ github.event.inputs.dry_run == 'true' || false }}
     secrets:
-      source_repo_token: ${{ secrets.LOVABLE_SYNC_TOKEN }}
+      # GitHub App auth (recommended):
+      app_id: ${{ secrets.LOVABLE_SYNC_APP_ID }}
+      app_private_key: ${{ secrets.LOVABLE_SYNC_APP_PRIVATE_KEY }}
+      # OR PAT auth (legacy):
+      # source_repo_token: ${{ secrets.LOVABLE_SYNC_TOKEN }}

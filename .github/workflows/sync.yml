@@ -142,16 +142,21 @@ jobs:
             --head "${{ steps.sync.outputs.sync_branch }}"
           )
 
-          if [[ -n "$LABELS" ]]; then
-            PR_ARGS+=(--label "$LABELS")
-          fi
-
           if [[ -n "$ASSIGNEES" ]]; then
             PR_ARGS+=(--assignee "$ASSIGNEES")
           fi
 
           PR_URL=$(gh pr create "${PR_ARGS[@]}")
           echo "Pull request created: ${PR_URL}"
+
+          # Apply labels separately so missing labels don't prevent PR creation
+          if [[ -n "$LABELS" ]]; then
+            IFS=',' read -ra LABEL_ARRAY <<< "$LABELS"
+            for label in "${LABEL_ARRAY[@]}"; do
+              gh label create "$label" --repo "${{ github.repository }}" 2>/dev/null || true
+            done
+            gh pr edit "$PR_URL" --add-label "$LABELS" || echo "::warning::Could not apply labels: $LABELS"
+          fi
 
           if [[ "$AUTO_MERGE" == "true" ]]; then
             gh pr merge "$PR_URL" --auto --squash

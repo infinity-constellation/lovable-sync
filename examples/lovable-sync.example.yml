@@ -1,4 +1,4 @@
-# .factory-sync.yml — Lovable-to-Production sync contract
+# .lovable-sync.yml — Lovable-to-Production sync contract
 #
 # Place this file in the ROOT of your production repo.
 # It defines what gets synced from the Lovable-connected repo.
@@ -43,7 +43,7 @@ exclude_paths:
   - Dockerfile.production
   - package-lock.json
   - eslint.config.js
-  - .factory-sync.yml
+  - .lovable-sync.yml
   - scripts/**
   - adapter/**
   - bun.lock

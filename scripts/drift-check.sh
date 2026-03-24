@@ -12,10 +12,10 @@
 set -euo pipefail
 
 PROD_DIR="${1:?Usage: drift-check.sh <production-repo-dir>}"
-SYNC_CONFIG="${PROD_DIR}/.factory-sync.yml"
+SYNC_CONFIG="${PROD_DIR}/.lovable-sync.yml"
 
 if [[ ! -f "$SYNC_CONFIG" ]]; then
-  echo "::error::No .factory-sync.yml found in ${PROD_DIR}"
+  echo "::error::No .lovable-sync.yml found in ${PROD_DIR}"
   exit 1
 fi
 

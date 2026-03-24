@@ -1,7 +1,7 @@
 # Reusable workflow: Check for drift between Lovable source and production repo
 #
 # Called from production repos via workflow_call.
-# Reads .factory-sync.yml from the calling repo to determine source/target.
+# Reads .lovable-sync.yml from the calling repo to determine source/target.
 #
 # Authentication: Supports two modes (pick one):
 #   1. GitHub App (recommended): pass app_id + app_private_key secrets
@@ -21,10 +21,10 @@ on:
         description: "GitHub PAT with read access to the source Lovable repo (legacy, use App instead)"
         required: false
       app_id:
-        description: "GitHub App ID for lovable-sync-bot"
+        description: "GitHub App ID"
         required: false
       app_private_key:
-        description: "GitHub App private key (PEM) for lovable-sync-bot"
+        description: "GitHub App private key (PEM)"
         required: false
     outputs:
       has_drift:
@@ -82,12 +82,12 @@ jobs:
           token: ${{ steps.auth.outputs.token }}
 
       - name: Install yq
-        uses: mikefarah/yq@master
+        uses: mikefarah/yq@v4
 
       - name: Validate sync config
         run: |
-          if [[ ! -f .factory-sync.yml ]]; then
-            echo "::error::Missing .factory-sync.yml in repository root"
+          if [[ ! -f .lovable-sync.yml ]]; then
+            echo "::error::Missing .lovable-sync.yml in repository root"
             exit 1
           fi
 

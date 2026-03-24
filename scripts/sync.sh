@@ -2,7 +2,7 @@
 #
 # sync.sh — Core sync logic for Lovable-to-Production repos
 #
-# Reads .factory-sync.yml from the production repo, clones the source
+# Reads .lovable-sync.yml from the production repo, clones the source
 # Lovable repo, and copies included paths while respecting exclusions.
 # Outputs a branch name and changeset summary for the calling workflow.
 #
@@ -13,10 +13,10 @@
 set -euo pipefail
 
 PROD_DIR="${1:?Usage: sync.sh <production-repo-dir>}"
-SYNC_CONFIG="${PROD_DIR}/.factory-sync.yml"
+SYNC_CONFIG="${PROD_DIR}/.lovable-sync.yml"
 
 if [[ ! -f "$SYNC_CONFIG" ]]; then
-  echo "::error::No .factory-sync.yml found in ${PROD_DIR}"
+  echo "::error::No .lovable-sync.yml found in ${PROD_DIR}"
   exit 1
 fi
 
@@ -26,7 +26,7 @@ SOURCE_BRANCH=$(yq '.source_branch // "main"' "$SYNC_CONFIG")
 TARGET_BRANCH=$(yq '.target_branch // "staging"' "$SYNC_CONFIG")
 
 if [[ -z "$SOURCE_REPO" || "$SOURCE_REPO" == "null" ]]; then
-  echo "::error::source_repo not set in .factory-sync.yml"
+  echo "::error::source_repo not set in .lovable-sync.yml"
   exit 1
 fi
 

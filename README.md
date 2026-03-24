@@ -49,7 +49,7 @@ The two tools are **complementary**: Lovable's sync keeps Lovable and its GitHub
 1. Lovable pushes to `main` in the Lovable-connected repo
 2. A dispatch workflow in that repo fires `repository_dispatch` to the production repo
 3. The production repo's caller workflow invokes this repo's reusable workflow
-4. The reusable workflow reads `.factory-sync.yml` from the production repo
+4. The reusable workflow reads `.lovable-sync.yml` from the production repo
 5. It clones the Lovable repo, rsyncs only the included paths (respecting exclusions), and opens a PR targeting the configured branch
 6. CI runs on the PR. Merge manually or enable auto-merge.
 
@@ -94,12 +94,12 @@ A dedicated GitHub App provides short-lived tokens with no rotation concerns.
    - On the **production repo**: `LOVABLE_SYNC_TOKEN`
    - On the **Lovable repo**: `SYNC_DISPATCH_TOKEN` (can be the same PAT)
 
-### Step 2: Add `.factory-sync.yml` to the Production Repo
+### Step 2: Add `.lovable-sync.yml` to the Production Repo
 
-Create `.factory-sync.yml` in the **root** of the production repo on the target branch (typically `staging`):
+Create `.lovable-sync.yml` in the **root** of the production repo on the target branch (typically `staging`):
 
 ```yaml
-# .factory-sync.yml
+# .lovable-sync.yml
 source_repo: your-org/your-lovable-repo
 source_branch: main
 target_branch: staging
@@ -130,7 +130,7 @@ exclude_paths:
   - Dockerfile.production
   - package-lock.json
   - eslint.config.js
-  - .factory-sync.yml
+  - .lovable-sync.yml
   - scripts/**
 
 pr:
@@ -264,7 +264,7 @@ jobs:
 
 ## Configuration Reference
 
-### `.factory-sync.yml`
+### `.lovable-sync.yml`
 
 | Field | Required | Default | Description |
 |-------|----------|---------|-------------|

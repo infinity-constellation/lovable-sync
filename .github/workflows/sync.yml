@@ -1,7 +1,7 @@
 # Reusable workflow: Sync Lovable source repo into production repo
 #
 # Called from production repos via workflow_call.
-# Reads .factory-sync.yml from the calling repo to determine source/target.
+# Reads .lovable-sync.yml from the calling repo to determine source/target.
 #
 # Authentication: Supports two modes (pick one):
 #   1. GitHub App (recommended): pass app_id + app_private_key secrets
@@ -26,10 +26,10 @@ on:
         description: "GitHub PAT with read access to the source Lovable repo (legacy, use App instead)"
         required: false
       app_id:
-        description: "GitHub App ID for lovable-sync-bot"
+        description: "GitHub App ID"
         required: false
       app_private_key:
-        description: "GitHub App private key (PEM) for lovable-sync-bot"
+        description: "GitHub App private key (PEM)"
         required: false
 
 jobs:
@@ -86,16 +86,16 @@ jobs:
           token: ${{ steps.auth.outputs.token }}
 
       - name: Install yq
-        uses: mikefarah/yq@master
+        uses: mikefarah/yq@v4
 
       - name: Validate sync config
         run: |
-          if [[ ! -f .factory-sync.yml ]]; then
-            echo "::error::Missing .factory-sync.yml in repository root"
+          if [[ ! -f .lovable-sync.yml ]]; then
+            echo "::error::Missing .lovable-sync.yml in repository root"
             exit 1
           fi
           echo "Sync config found:"
-          cat .factory-sync.yml
+          cat .lovable-sync.yml
 
       - name: Run sync
         id: sync
@@ -110,30 +110,32 @@ jobs:
         env:
           GH_TOKEN: ${{ steps.auth.outputs.token }}
         run: |
-          # Read PR config from .factory-sync.yml
-          TARGET_BRANCH=$(yq '.target_branch // "staging"' .factory-sync.yml)
-          SOURCE_REPO=$(yq '.source_repo' .factory-sync.yml)
-          LABELS=$(yq -r '.pr.labels // [] | join(",")' .factory-sync.yml)
-          ASSIGNEES=$(yq -r '.pr.assignees // [] | join(",")' .factory-sync.yml)
-          AUTO_MERGE=$(yq '.pr.auto_merge // false' .factory-sync.yml)
+          # Read PR config from .lovable-sync.yml
+          TARGET_BRANCH=$(yq '.target_branch // "staging"' .lovable-sync.yml)
+          SOURCE_REPO=$(yq '.source_repo' .lovable-sync.yml)
+          LABELS=$(yq -r '.pr.labels // [] | join(",")' .lovable-sync.yml)
+          ASSIGNEES=$(yq -r '.pr.assignees // [] | join(",")' .lovable-sync.yml)
+          AUTO_MERGE=$(yq '.pr.auto_merge // false' .lovable-sync.yml)
 
           PR_TITLE="sync: Lovable update from ${SOURCE_REPO}@${{ steps.sync.outputs.source_sha }}"
 
-          PR_BODY="## Lovable Sync
+          read -r -d '' PR_BODY << 'PRBODY' || true
+## Lovable Sync
 
-          Automated sync of Lovable-managed files from \`${SOURCE_REPO}\`.
+Automated sync of Lovable-managed files from \`${SOURCE_REPO}\`.
 
-          **Source:** \`${SOURCE_REPO}@${{ steps.sync.outputs.source_sha }}\`
-          **Target:** \`${TARGET_BRANCH}\`
-          **Files changed:** ${{ steps.sync.outputs.files_changed }}
+**Source:** \`${SOURCE_REPO}@${{ steps.sync.outputs.source_sha }}\`
+**Target:** \`${TARGET_BRANCH}\`
+**Files changed:** ${{ steps.sync.outputs.files_changed }}
 
-          ### Changes
-          \`\`\`
-          ${{ steps.sync.outputs.diff_stat }}
-          \`\`\`
+### Changes
+\`\`\`
+${{ steps.sync.outputs.diff_stat }}
+\`\`\`
 
-          ---
-          *This PR was created automatically by [lovable-sync](https://github.com/infinity-constellation/lovable-sync).*"
+---
+*This PR was created automatically by [lovable-sync](https://github.com/infinity-constellation/lovable-sync).*
+PRBODY
 
           PR_ARGS=(
             --title "$PR_TITLE"

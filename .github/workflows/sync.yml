@@ -47,7 +47,7 @@ jobs:
     steps:
       - name: Generate GitHub App token
         id: app-token
-        if: ${{ secrets.app_id != '' && secrets.app_private_key != '' }}
+        continue-on-error: true
         uses: actions/create-github-app-token@v1
         with:
           app-id: ${{ secrets.app_id }}
@@ -59,9 +59,11 @@ jobs:
         run: |
           if [[ -n "$APP_TOKEN" ]]; then
             echo "token=$APP_TOKEN" >> "$GITHUB_OUTPUT"
+            echo "mode=app" >> "$GITHUB_OUTPUT"
             echo "Using GitHub App token"
           elif [[ -n "$PAT_TOKEN" ]]; then
             echo "token=$PAT_TOKEN" >> "$GITHUB_OUTPUT"
+            echo "mode=pat" >> "$GITHUB_OUTPUT"
             echo "Using PAT token"
           else
             echo "::error::No authentication configured. Provide either app_id + app_private_key or source_repo_token."

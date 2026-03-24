@@ -75,11 +75,12 @@ echo "- *" >> "$RSYNC_FILTERS"
 echo "Rsync filter rules:"
 cat "$RSYNC_FILTERS"
 
-# Create sync branch in production repo
-SYNC_BRANCH="lovable-sync/${SOURCE_SHA}-$(date +%Y%m%d-%H%M%S)"
+# Use a stable sync branch name so subsequent syncs update the same PR
+SYNC_BRANCH="lovable-sync/pending"
 
 # Ensure we're on the target branch
 git -C "$PROD_DIR" fetch origin "${TARGET_BRANCH}" 2>&1 || true
+git -C "$PROD_DIR" fetch origin "${SYNC_BRANCH}" 2>&1 || true
 git -C "$PROD_DIR" checkout -B "$SYNC_BRANCH" "origin/${TARGET_BRANCH}" 2>&1
 
 # Rsync from source to production
@@ -123,8 +124,9 @@ Automated sync of Lovable-managed files.
 Source: ${SOURCE_REPO}@${SOURCE_SHA} (${SOURCE_BRANCH})
 Files changed: ${FILES_CHANGED}"
 
-# Push the sync branch
-git -C "$PROD_DIR" push origin "$SYNC_BRANCH" 2>&1
+# Push the sync branch (force-push since we always reset to target branch HEAD)
+# Safe because this branch is exclusively owned by the sync bot
+git -C "$PROD_DIR" push --force origin "$SYNC_BRANCH" 2>&1
 
 # Export outputs for the workflow
 {

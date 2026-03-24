@@ -105,7 +105,7 @@ jobs:
           chmod +x .lovable-sync/scripts/sync.sh
           .lovable-sync/scripts/sync.sh "${{ github.workspace }}"
 
-      - name: Create Pull Request
+      - name: Create or update Pull Request
         if: steps.sync.outputs.sync_needed == 'true' && inputs.dry_run != true
         env:
           GH_TOKEN: ${{ steps.auth.outputs.token }}
@@ -117,6 +117,7 @@ jobs:
           ASSIGNEES=$(yq -r '.pr.assignees // [] | join(",")' .lovable-sync.yml)
           AUTO_MERGE=$(yq '.pr.auto_merge // false' .lovable-sync.yml)
 
+          SYNC_BRANCH="${{ steps.sync.outputs.sync_branch }}"
           PR_TITLE="sync: Lovable update from ${SOURCE_REPO}@${{ steps.sync.outputs.source_sha }}"
 
           PR_BODY="## Lovable Sync
@@ -135,27 +136,38 @@ jobs:
           ---
           *This PR was created automatically by [lovable-sync](https://github.com/infinity-constellation/lovable-sync).*"
 
-          PR_ARGS=(
-            --title "$PR_TITLE"
-            --body "$PR_BODY"
-            --base "$TARGET_BRANCH"
-            --head "${{ steps.sync.outputs.sync_branch }}"
-          )
+          # Check if a PR already exists for the sync branch
+          EXISTING_PR=$(gh pr list --head "$SYNC_BRANCH" --base "$TARGET_BRANCH" --state open --json number --jq '.[0].number // empty')
 
-          if [[ -n "$ASSIGNEES" ]]; then
-            PR_ARGS+=(--assignee "$ASSIGNEES")
-          fi
+          if [[ -n "$EXISTING_PR" ]]; then
+            # Update existing PR title and body
+            gh pr edit "$EXISTING_PR" --title "$PR_TITLE" --body "$PR_BODY"
+            PR_URL=$(gh pr view "$EXISTING_PR" --json url --jq '.url')
+            echo "Pull request updated: ${PR_URL}"
+          else
+            # Create new PR
+            PR_ARGS=(
+              --title "$PR_TITLE"
+              --body "$PR_BODY"
+              --base "$TARGET_BRANCH"
+              --head "$SYNC_BRANCH"
+            )
 
-          PR_URL=$(gh pr create "${PR_ARGS[@]}")
-          echo "Pull request created: ${PR_URL}"
+            if [[ -n "$ASSIGNEES" ]]; then
+              PR_ARGS+=(--assignee "$ASSIGNEES")
+            fi
 
-          # Apply labels separately so missing labels don't prevent PR creation
-          if [[ -n "$LABELS" ]]; then
-            IFS=',' read -ra LABEL_ARRAY <<< "$LABELS"
-            for label in "${LABEL_ARRAY[@]}"; do
-              gh label create "$label" --repo "${{ github.repository }}" 2>/dev/null || true
-            done
-            gh pr edit "$PR_URL" --add-label "$LABELS" || echo "::warning::Could not apply labels: $LABELS"
+            PR_URL=$(gh pr create "${PR_ARGS[@]}")
+            echo "Pull request created: ${PR_URL}"
+
+            # Apply labels separately so missing labels don't prevent PR creation
+            if [[ -n "$LABELS" ]]; then
+              IFS=',' read -ra LABEL_ARRAY <<< "$LABELS"
+              for label in "${LABEL_ARRAY[@]}"; do
+                gh label create "$label" --repo "${{ github.repository }}" 2>/dev/null || true
+              done
+              gh pr edit "$PR_URL" --add-label "$LABELS" || echo "::warning::Could not apply labels: $LABELS"
+            fi
           fi
 
           if [[ "$AUTO_MERGE" == "true" ]]; then

@@ -3,6 +3,10 @@
 # Called from production repos via workflow_call.
 # Reads .factory-sync.yml from the calling repo to determine source/target.
 #
+# Authentication: Supports two modes (pick one):
+#   1. GitHub App (recommended): pass app_id + app_private_key secrets
+#   2. PAT: pass source_repo_token secret
+#
 # Triggers:
 #   - repository_dispatch from the Lovable repo (event: lovable-sync)
 #   - workflow_dispatch for manual runs
@@ -19,8 +23,14 @@ on:
         default: false
     secrets:
       source_repo_token:
-        description: "GitHub token with read access to the source Lovable repo"
-        required: true
+        description: "GitHub PAT with read access to the source Lovable repo (legacy, use App instead)"
+        required: false
+      app_id:
+        description: "GitHub App ID for lovable-sync-bot"
+        required: false
+      app_private_key:
+        description: "GitHub App private key (PEM) for lovable-sync-bot"
+        required: false
 
 jobs:
   sync:
@@ -35,6 +45,32 @@ jobs:
       files_changed: ${{ steps.sync.outputs.files_changed }}
 
     steps:
+      - name: Generate GitHub App token
+        id: app-token
+        if: ${{ secrets.app_id != '' && secrets.app_private_key != '' }}
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.app_id }}
+          private-key: ${{ secrets.app_private_key }}
+          owner: ${{ github.repository_owner }}
+
+      - name: Resolve auth token
+        id: auth
+        run: |
+          if [[ -n "$APP_TOKEN" ]]; then
+            echo "token=$APP_TOKEN" >> "$GITHUB_OUTPUT"
+            echo "Using GitHub App token"
+          elif [[ -n "$PAT_TOKEN" ]]; then
+            echo "token=$PAT_TOKEN" >> "$GITHUB_OUTPUT"
+            echo "Using PAT token"
+          else
+            echo "::error::No authentication configured. Provide either app_id + app_private_key or source_repo_token."
+            exit 1
+          fi
+        env:
+          APP_TOKEN: ${{ steps.app-token.outputs.token }}
+          PAT_TOKEN: ${{ secrets.source_repo_token }}
+
       - name: Checkout production repo
         uses: actions/checkout@v4
         with:
@@ -45,7 +81,7 @@ jobs:
         with:
           repository: infinity-constellation/lovable-sync
           path: .lovable-sync
-          token: ${{ secrets.source_repo_token }}
+          token: ${{ steps.auth.outputs.token }}
 
       - name: Install yq
         uses: mikefarah/yq@master
@@ -62,7 +98,7 @@ jobs:
       - name: Run sync
         id: sync
         env:
-          GITHUB_TOKEN: ${{ secrets.source_repo_token }}
+          GITHUB_TOKEN: ${{ steps.auth.outputs.token }}
         run: |
           chmod +x .lovable-sync/scripts/sync.sh
           .lovable-sync/scripts/sync.sh "${{ github.workspace }}"
@@ -70,7 +106,7 @@ jobs:
       - name: Create Pull Request
         if: steps.sync.outputs.sync_needed == 'true' && inputs.dry_run != true
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ steps.auth.outputs.token }}
         run: |
           # Read PR config from .factory-sync.yml
           TARGET_BRANCH=$(yq '.target_branch // "staging"' .factory-sync.yml)

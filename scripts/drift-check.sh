@@ -10,7 +10,6 @@
 # Requires: yq, rsync, git, diff
 #
 set -euo pipefail
-set -x
 
 PROD_DIR="${1:?Usage: drift-check.sh <production-repo-dir>}"
 SYNC_CONFIG="${PROD_DIR}/.factory-sync.yml"
@@ -115,10 +114,10 @@ if [[ -z "$DIFF_OUTPUT" ]]; then
   exit 0
 fi
 
-# Parse drift
-FILES_ONLY_IN_SOURCE=$(echo "$DIFF_OUTPUT" | grep "^Only in ${COMPARE_SOURCE}" | wc -l | tr -d ' ')
-FILES_ONLY_IN_PROD=$(echo "$DIFF_OUTPUT" | grep "^Only in ${COMPARE_PROD}" | wc -l | tr -d ' ')
-FILES_DIFFER=$(echo "$DIFF_OUTPUT" | grep "^Files .* differ$" | wc -l | tr -d ' ')
+# Parse drift (grep -c returns count; || true prevents pipefail exit on zero matches)
+FILES_ONLY_IN_SOURCE=$(echo "$DIFF_OUTPUT" | grep -c "^Only in ${COMPARE_SOURCE}" || true)
+FILES_ONLY_IN_PROD=$(echo "$DIFF_OUTPUT" | grep -c "^Only in ${COMPARE_PROD}" || true)
+FILES_DIFFER=$(echo "$DIFF_OUTPUT" | grep -c "^Files .* differ$" || true)
 
 TOTAL_DRIFT=$((FILES_ONLY_IN_SOURCE + FILES_ONLY_IN_PROD + FILES_DIFFER))
 

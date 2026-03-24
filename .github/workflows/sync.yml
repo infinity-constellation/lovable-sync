@@ -119,23 +119,21 @@ jobs:
 
           PR_TITLE="sync: Lovable update from ${SOURCE_REPO}@${{ steps.sync.outputs.source_sha }}"
 
-          read -r -d '' PR_BODY << 'PRBODY' || true
-## Lovable Sync
+          PR_BODY="## Lovable Sync
 
-Automated sync of Lovable-managed files from \`${SOURCE_REPO}\`.
+          Automated sync of Lovable-managed files from \`${SOURCE_REPO}\`.
 
-**Source:** \`${SOURCE_REPO}@${{ steps.sync.outputs.source_sha }}\`
-**Target:** \`${TARGET_BRANCH}\`
-**Files changed:** ${{ steps.sync.outputs.files_changed }}
+          **Source:** \`${SOURCE_REPO}@${{ steps.sync.outputs.source_sha }}\`
+          **Target:** \`${TARGET_BRANCH}\`
+          **Files changed:** ${{ steps.sync.outputs.files_changed }}
 
-### Changes
-\`\`\`
-${{ steps.sync.outputs.diff_stat }}
-\`\`\`
+          ### Changes
+          \`\`\`
+          ${{ steps.sync.outputs.diff_stat }}
+          \`\`\`
 
----
-*This PR was created automatically by [lovable-sync](https://github.com/infinity-constellation/lovable-sync).*
-PRBODY
+          ---
+          *This PR was created automatically by [lovable-sync](https://github.com/infinity-constellation/lovable-sync).*"
 
           PR_ARGS=(
             --title "$PR_TITLE"

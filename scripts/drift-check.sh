@@ -10,6 +10,7 @@
 # Requires: yq, rsync, git, diff
 #
 set -euo pipefail
+set -x
 
 PROD_DIR="${1:?Usage: drift-check.sh <production-repo-dir>}"
 SYNC_CONFIG="${PROD_DIR}/.factory-sync.yml"

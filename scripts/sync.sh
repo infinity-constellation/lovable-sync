@@ -103,8 +103,8 @@ if git -C "$PROD_DIR" diff --quiet && git -C "$PROD_DIR" diff --cached --quiet; 
   fi
 fi
 
-# Stage all changes
-git -C "$PROD_DIR" add -A
+# Stage all changes (exclude the tooling checkout)
+git -C "$PROD_DIR" add -A -- ':!.lovable-sync'
 
 # Generate changeset summary
 DIFF_STAT=$(git -C "$PROD_DIR" diff --cached --stat)

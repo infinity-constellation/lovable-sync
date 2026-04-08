@@ -75,19 +75,26 @@ echo "Source HEAD: ${SOURCE_SHA}"
 RSYNC_FILTERS=$(mktemp)
 
 # 1. Protect + exclude production-owned paths
-EXCLUDE_COUNT=$(yq '.exclude_paths | length' "$SYNC_CONFIG")
+#
+# NOTE: We use `yq '.exclude_paths[]'` piped to `while read` instead of
+# indexed access (`yq ".exclude_paths[$i]"`) because some yq versions /
+# runner environments silently truncate indexed array access for larger
+# arrays. The streaming approach is more reliable.
 echo "# --- Production-owned paths (protect + exclude) ---" >> "$RSYNC_FILTERS"
-for (( i=0; i<EXCLUDE_COUNT; i++ )); do
-  pattern=$(yq ".exclude_paths[$i]" "$SYNC_CONFIG")
+EXCLUDE_RULE_COUNT=0
+while IFS= read -r pattern; do
+  [[ -z "$pattern" ]] && continue
   echo "P ${pattern}" >> "$RSYNC_FILTERS"
   echo "- ${pattern}" >> "$RSYNC_FILTERS"
-done
+  EXCLUDE_RULE_COUNT=$((EXCLUDE_RULE_COUNT + 1))
+done < <(yq '.exclude_paths[]' "$SYNC_CONFIG")
+echo "Generated ${EXCLUDE_RULE_COUNT} protect+exclude rules"
 
 # 2. Include source-owned paths (with parent directory traversal)
 echo "# --- Source-owned paths (include) ---" >> "$RSYNC_FILTERS"
-INCLUDE_COUNT=$(yq '.include_paths | length' "$SYNC_CONFIG")
-for (( i=0; i<INCLUDE_COUNT; i++ )); do
-  pattern=$(yq ".include_paths[$i]" "$SYNC_CONFIG")
+INCLUDE_RULE_COUNT=0
+while IFS= read -r pattern; do
+  [[ -z "$pattern" ]] && continue
   # For directory globs like src/pages/**, we need to include the parent dirs
   parent_dir=$(dirname "$pattern")
   while [[ "$parent_dir" != "." ]]; do
@@ -95,7 +102,9 @@ for (( i=0; i<INCLUDE_COUNT; i++ )); do
     parent_dir=$(dirname "$parent_dir")
   done
   echo "+ ${pattern}" >> "$RSYNC_FILTERS"
-done
+  INCLUDE_RULE_COUNT=$((INCLUDE_RULE_COUNT + 1))
+done < <(yq '.include_paths[]' "$SYNC_CONFIG")
+echo "Generated ${INCLUDE_RULE_COUNT} include rules"
 
 # 3. Exclude everything else (don't sync files outside include_paths)
 echo "# --- Default deny ---" >> "$RSYNC_FILTERS"

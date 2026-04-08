@@ -10,6 +10,17 @@
 #
 # Requires: yq, rsync, git
 #
+# How it works:
+#   1. Clone the Lovable source repo (shallow)
+#   2. Read .lovable-sync.yml from the production repo for include/exclude paths
+#   3. Build rsync filter rules:
+#      - PROTECT excluded paths from deletion (P rules)
+#      - EXCLUDE them from transfer (- rules)
+#      - INCLUDE source-owned paths (+ rules)
+#      - EXCLUDE everything else (- *)
+#   4. rsync --delete copies source files, deletes stale Lovable files,
+#      but never touches production-only files
+#
 set -euo pipefail
 
 PROD_DIR="${1:?Usage: sync.sh <production-repo-dir>}"
@@ -46,17 +57,34 @@ git clone --depth=1 --branch "${SOURCE_BRANCH}" \
 SOURCE_SHA=$(git -C "$SOURCE_DIR" rev-parse --short HEAD)
 echo "Source HEAD: ${SOURCE_SHA}"
 
-# Build rsync include/exclude filters from config
+# ---------------------------------------------------------------------------
+# Build rsync filter rules from config
+# ---------------------------------------------------------------------------
+#
+# rsync processes filter rules top-to-bottom, first match wins.
+#
+# CRITICAL: For --delete to work correctly alongside exclusions, we need TWO
+# rules for each excluded path:
+#   P <pattern>   — protect: prevents --delete from removing the file
+#   - <pattern>   — exclude: prevents rsync from transferring (overwriting) it
+#
+# Without the P rule, --delete sees "this file isn't in the transfer set"
+# and removes it from the destination — even though the - rule excluded it
+# from transfer. This is the most common rsync --delete footgun.
+#
 RSYNC_FILTERS=$(mktemp)
 
-# First, add excludes (these take priority)
+# 1. Protect + exclude production-owned paths
 EXCLUDE_COUNT=$(yq '.exclude_paths | length' "$SYNC_CONFIG")
+echo "# --- Production-owned paths (protect + exclude) ---" >> "$RSYNC_FILTERS"
 for (( i=0; i<EXCLUDE_COUNT; i++ )); do
   pattern=$(yq ".exclude_paths[$i]" "$SYNC_CONFIG")
+  echo "P ${pattern}" >> "$RSYNC_FILTERS"
   echo "- ${pattern}" >> "$RSYNC_FILTERS"
 done
 
-# Then add includes
+# 2. Include source-owned paths (with parent directory traversal)
+echo "# --- Source-owned paths (include) ---" >> "$RSYNC_FILTERS"
 INCLUDE_COUNT=$(yq '.include_paths | length' "$SYNC_CONFIG")
 for (( i=0; i<INCLUDE_COUNT; i++ )); do
   pattern=$(yq ".include_paths[$i]" "$SYNC_CONFIG")
@@ -69,7 +97,8 @@ for (( i=0; i<INCLUDE_COUNT; i++ )); do
   echo "+ ${pattern}" >> "$RSYNC_FILTERS"
 done
 
-# Exclude everything else
+# 3. Exclude everything else (don't sync files outside include_paths)
+echo "# --- Default deny ---" >> "$RSYNC_FILTERS"
 echo "- *" >> "$RSYNC_FILTERS"
 
 echo "Rsync filter rules:"

@@ -45,6 +45,25 @@ echo "Sync config:"
 echo "  source: ${SOURCE_REPO}@${SOURCE_BRANCH}"
 echo "  target: ${TARGET_BRANCH}"
 
+# Use a stable sync branch name so subsequent syncs update the same PR
+SYNC_BRANCH="lovable-sync/pending"
+
+# ---------------------------------------------------------------------------
+# Switch to the target branch BEFORE reading include/exclude paths.
+#
+# The workflow checks out the trigger branch (usually main), but the
+# authoritative .lovable-sync.yml — with the full exclude_paths list —
+# lives on the TARGET branch (staging). We must switch first so that
+# SYNC_CONFIG reflects the target branch's version of the file.
+# ---------------------------------------------------------------------------
+git -C "$PROD_DIR" fetch origin "${TARGET_BRANCH}" 2>&1 || true
+git -C "$PROD_DIR" fetch origin "${SYNC_BRANCH}" 2>&1 || true
+git -C "$PROD_DIR" checkout -B "$SYNC_BRANCH" "origin/${TARGET_BRANCH}" 2>&1
+
+# Re-read config path (file content now comes from target branch)
+SYNC_CONFIG="${PROD_DIR}/.lovable-sync.yml"
+echo "Reading include/exclude paths from target branch (${TARGET_BRANCH})"
+
 # Clone source repo into temp directory
 SOURCE_DIR=$(mktemp -d)
 trap 'rm -rf "$SOURCE_DIR"' EXIT
@@ -112,14 +131,6 @@ echo "- *" >> "$RSYNC_FILTERS"
 
 echo "Rsync filter rules:"
 cat "$RSYNC_FILTERS"
-
-# Use a stable sync branch name so subsequent syncs update the same PR
-SYNC_BRANCH="lovable-sync/pending"
-
-# Ensure we're on the target branch
-git -C "$PROD_DIR" fetch origin "${TARGET_BRANCH}" 2>&1 || true
-git -C "$PROD_DIR" fetch origin "${SYNC_BRANCH}" 2>&1 || true
-git -C "$PROD_DIR" checkout -B "$SYNC_BRANCH" "origin/${TARGET_BRANCH}" 2>&1
 
 # Rsync from source to production
 echo "Syncing files..."
